@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Star Chart"/>
+<meta name="theme-color" content="#0a0a2e"/>
+<title>⭐ My Star Chart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Pacifico&family=Righteous&family=Cinzel+Decorative:wght@700&family=Fredoka+One&family=Baloo+2:wght@700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+
+<!-- PWA Manifest inline -->
+<script>
+const manifestData = {
+  name: "My Star Reward Chart",
+  short_name: "Star Chart",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#0a0a2e",
+  theme_color: "#0a0a2e",
+  orientation: "portrait-primary",
+  icons: [{
+    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%230a0a2e'/><text y='130' x='96' text-anchor='middle' font-size='120'>⭐</text></svg>",
+    sizes: "192x192", type: "image/svg+xml"
+  }]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+const link = document.createElement('link');
+link.rel = 'manifest';
+link.href = manifestURL;
+document.head.appendChild(link);
+</script>
+
+<style>
+  :root {
+    --accent: #7eb8ff;
+    --accent2: #ff6eb4;
+    --text: #e8f4ff;
+    --card: rgba(255,255,255,0.07);
+    --border: rgba(100,180,255,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow-x: hidden; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: linear-gradient(135deg,#0a0a2e 0%,#1a1a5e 40%,#0d2060 100%);
+    min-height: 100vh;
+    color: var(--text);
+    transition: background 0.6s ease;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background: var(--pattern);
+    pointer-events: none;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+  /* Animations */
+  @keyframes twinkle { 0%,100%{opacity:.2} 50%{opacity:.9} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+  @keyframes pop { 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.3) rotate(5deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+  @keyframes slideDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes glow { 0%,100%{box-shadow:0 0 20px var(--accent2)} 50%{box-shadow:0 0 40px var(--accent2), 0 0 60px var(--accent)} }
+
+  /* Stars bg */
+  .star-bg span {
+    position: fixed; border-radius: 50%; background: white;
+    animation: twinkle var(--d,3s) ease-in-out infinite;
+    animation-delay: var(--dl,0s);
+    opacity: .3; pointer-events: none; z-index: 0;
+  }
+
+  /* Layout */
+  #app { position: relative; z-index: 1; padding: env(safe-area-inset-top, 16px) 14px 40px; max-width: 900px; margin: 0 auto; }
+
+  /* Top bar */
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; padding-top: 8px; }
+  .theme-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .theme-btn {
+    padding: 5px 11px; border-radius: 20px; border: none; cursor: pointer;
+    font-size: 11px; font-weight: 800; font-family: 'Nunito', sans-serif;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.65);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .theme-btn.active {
+    background: rgba(255,255,255,0.22);
+    color: #fff;
+    outline: 2px solid var(--accent);
+    transform: scale(1.05);
+  }
+  .edit-btn {
+    padding: 9px 18px; border-radius: 22px; border: none; cursor: pointer;
+    font-weight: 900; font-size: 13px; font-family: 'Nunito', sans-serif;
+    background: var(--accent2); color: #000;
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--accent2) 50%, transparent);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .edit-btn.off { background: rgba(255,255,255,0.12); color: var(--text); box-shadow: none; }
+
+  /* Edit Panel */
+  .edit-panel {
+    background: rgba(0,0,0,0.4); border-radius: 22px;
+    border: 1px solid var(--border); backdrop-filter: blur(18px);
+    padding: 22px; margin-bottom: 22px;
+    animation: slideDown .25s ease;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 20px;
+  }
+  .edit-section-title { color: var(--accent); font-weight: 900; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .edit-col { display: flex; flex-direction: column; gap: 10px; }
+  label.lbl { color: var(--text); font-size: 10px; font-weight: 800; opacity: .7; letter-spacing: 1.5px; text-transform: uppercase; }
+  input.inp {
+    background: rgba(255,255,255,0.1); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 9px 14px; color: var(--text);
+    font-size: 14px; font-family: 'Nunito', sans-serif; outline: none;
+    transition: border-color .2s;
+  }
+  input.inp:focus { border-color: var(--accent); }
+  input.inp::placeholder { opacity: .4; }
+  input.inp[type=number] { width: 80px; }
+
+  /* Chore tags */
+  .chore-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chore-tag {
+    position: relative; background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 20px; padding: 5px 28px 5px 10px;
+    font-size: 12px; font-weight: 700; color: var(--text); cursor: default;
+  }
+  .chore-tag .rm {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--accent2); font-size: 12px; line-height: 1;
+    opacity: 0; transition: opacity .2s;
+  }
+  .chore-tag:hover .rm { opacity: 1; }
+  .add-chore-row { display: flex; gap: 8px; }
+  .add-chore-row input { flex: 1; }
+  .add-btn {
+    background: var(--accent2); border: none; border-radius: 12px;
+    padding: 9px 14px; cursor: pointer; font-weight: 900; font-size: 18px;
+    color: #000; line-height: 1; transition: transform .15s;
+  }
+  .add-btn:active { transform: scale(.92); }
+
+  /* Photo upload */
+  .photo-row { display: flex; gap: 10px; }
+  .photo-box {
+    flex: 1; height: 80px; border-radius: 14px;
+    border: 2px dashed var(--border);
+    background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; overflow: hidden; position: relative;
+    transition: border-color .2s;
+  }
+  .photo-box:hover { border-color: var(--accent); }
+  .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-box .ph-label { text-align: center; font-size: 10px; opacity: .55; color: var(--text); margin-top: 3px; }
+  .gen-btn {
+    width: 100%; padding: 11px; border-radius: 14px; border: none; cursor: pointer;
+    font-weight: 900; font-size: 13px; font-family: 'Nunito', sans-serif;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #000; transition: all .2s;
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .gen-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; background: rgba(255,255,255,0.1); color: var(--text); }
+
+  /* Sticker picker */
+  .sticker-picker { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .sticker-pick-btn {
+    width: 38px; height: 38px; border-radius: 11px; border: none; cursor: pointer;
+    font-size: 20px; background: rgba(255,255,255,0.08); transition: all .15s;
+  }
+  .sticker-pick-btn.selected {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    outline: 2px solid var(--accent);
+    transform: scale(1.2);
+  }
+  .pick-label { font-size: 11px; font-weight: 800; opacity: .6; letter-spacing: 1px; color: var(--text); }
+
+  /* Main layout */
+  .main-grid { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 600px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .hero-col { display: flex; gap: 12px; align-items: flex-start; }
+    .hero-card { flex: 0 0 160px; }
+    .progress-card { flex: 1; }
+  }
+
+  /* Hero / Character card */
+  .hero-card {
+    background: var(--card); border-radius: 22px;
+    border: 2px solid var(--border); backdrop-filter: blur(12px);
+    padding: 18px 16px; display: flex; flex-direction: column;
+    align-items: center; gap: 10px; min-width: 180px; max-width: 220px;
+    animation: float 4s ease-in-out infinite;
+  }
+  .hero-badge { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 2px; opacity: .8; }
+  .avatar-wrap { position: relative; width: 110px; height: 110px; }
+  .avatar-ring {
+    position: absolute; inset: -8px; border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent));
+    opacity: .5; animation: spin 8s linear infinite;
+  }
+  .avatar-main {
+    position: absolute; inset: 0; border-radius: 50%;
+    overflow: hidden; border: 3px solid var(--accent2);
+    background: var(--card);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+  }
+  .avatar-main img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-badge {
+    position: absolute; bottom: -4px; right: -4px;
+    width: 42px; height: 42px; border-radius: 50%;
+    overflow: hidden; border: 2.5px solid var(--accent);
+    background: var(--card);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .avatar-badge img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-name {
+    font-size: 18px; font-weight: 900; color: var(--accent2);
+    font-family: 'Nunito', sans-serif; text-align: center;
+    text-shadow: 0 0 20px color-mix(in srgb, var(--accent2) 60%, transparent);
+  }
+  .hero-desc {
+    font-size: 11px; color: var(--text); opacity: .85;
+    text-align: center; line-height: 1.55; min-height: 48px;
+  }
+  .hero-ribbon {
+    background: color-mix(in srgb, var(--accent2) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent2) 40%, transparent);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 11px; color: var(--accent2); font-weight: 800;
+  }
+
+  /* Progress card */
+  .progress-card {
+    background: rgba(0,0,0,0.3); border-radius: 18px;
+    border: 1px solid var(--border); backdrop-filter: blur(10px);
+    padding: 14px 16px; margin-top: 12px;
+  }
+  .prog-label { font-size: 10px; font-weight: 800; letter-spacing: 2px; opacity: .65; margin-bottom: 8px; }
+  .prog-bar-bg { background: rgba(255,255,255,0.1); border-radius: 20px; height: 12px; overflow: hidden; }
+  .prog-bar {
+    height: 100%; border-radius: 20px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+    transition: width .5s cubic-bezier(.34,1.56,.64,1);
+    min-width: 4px;
+  }
+  .prog-counts { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; font-weight: 800; }
+  .prog-reward { font-size: 11px; opacity: .65; margin-top: 8px; text-align: center; line-height: 1.4; }
+  .goal-reached {
+    font-size: 13px; font-weight: 900; color: var(--accent2);
+    text-align: center; margin-top: 6px;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  /* Chart table */
+  .chart-wrap { flex: 1; }
+  .chart-title {
+    text-align: center; margin-bottom: 18px;
+  }
+  .chart-title h1 {
+    font-size: clamp(20px, 5vw, 38px); margin: 0;
+    color: var(--accent2);
+    text-shadow: 0 0 30px color-mix(in srgb, var(--accent2) 60%, transparent), 0 2px 8px rgba(0,0,0,.5);
+    letter-spacing: 1px;
+  }
+  .chart-title p { margin: 3px 0 0; opacity: .65; font-size: 13px; font-weight: 700; }
+
+  /* Week block */
+  .week-block {
+    background: rgba(0,0,0,0.28); border-radius: 20px;
+    border: 1px solid var(--border); backdrop-filter: blur(10px);
+    overflow: hidden; margin-bottom: 14px;
+  }
+  .week-header {
+    padding: 8px 16px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 900; color: var(--accent); letter-spacing: 2px;
+  }
+  .grid-table { width: 100%; border-collapse: collapse; }
+  .grid-table thead th {
+    padding: 10px 4px; font-size: 11px; font-weight: 900;
+    color: var(--accent); letter-spacing: 1px; text-align: center;
+  }
+  .grid-table thead th:first-child { text-align: left; padding-left: 14px; font-size: 10px; opacity: .7; }
+  .grid-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
+  .grid-table tbody td { border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); }
+  .task-cell {
+    padding: 8px 8px 8px 14px; font-size: 12px; font-weight: 700;
+    white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .task-cell .task-icon { margin-right: 5px; }
+  .sticker-cell {
+    text-align: center; cursor: pointer; padding: 5px 3px;
+    min-width: 38px; height: 46px;
+    border-left: 1px solid color-mix(in srgb, var(--border) 20%, transparent);
+    transition: background .15s, transform .15s;
+    user-select: none;
+  }
+  .sticker-cell:active { transform: scale(.9); }
+  .sticker-cell .sticker-dot {
+    width: 28px; height: 28px; border-radius: 8px;
+    border: 1.5px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    background: rgba(255,255,255,0.03);
+    margin: auto;
+  }
+  .sticker-cell .placed { font-size: 22px; line-height: 1; display: block; animation: pop .25s cubic-bezier(.34,1.56,.64,1); filter: drop-shadow(0 0 5px var(--accent)); }
+  .sticker-cell.filled { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+  /* Hint */
+  .hint { text-align: center; font-size: 11px; opacity: .35; font-weight: 700; margin-top: 6px; letter-spacing: 1px; }
+
+  /* Save toast */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: rgba(0,0,0,.8); color: #fff; padding: 10px 22px;
+    border-radius: 30px; font-size: 13px; font-weight: 700;
+    border: 1px solid var(--accent); backdrop-filter: blur(10px);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1); z-index: 999;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Reset btn */
+  .reset-btn {
+    background: rgba(255,60,60,.15); border: 1px solid rgba(255,60,60,.3);
+    color: #ff8888; font-size: 11px; font-weight: 800; font-family: 'Nunito', sans-serif;
+    border-radius: 20px; padding: 5px 12px; cursor: pointer; margin-top: 6px;
+    transition: background .2s;
+  }
+  .reset-btn:hover { background: rgba(255,60,60,.3); }
+</style>
+</head>
+<body>
+
+<!-- Star background (space theme only) -->
+<div class="star-bg" id="starBg"></div>
+
+<div id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="theme-btns" id="themeBtns"></div>
+    <button class="edit-btn" id="editToggle" onclick="toggleEdit()">✏️ Edit Chart</button>
+  </div>
+
+  <!-- Edit Panel -->
+  <div class="edit-panel" id="editPanel" style="display:none">
+    <div style="grid-column:1/-1">
+      <div class="edit-section-title">✏️ Customise Your Chart</div>
+    </div>
+
+    <!-- Col 1: Basic info -->
+    <div class="edit-col">
+      <label class="lbl">Child's Name</label>
+      <input class="inp" id="inp_name" placeholder="e.g. Alex" oninput="save()"/>
+      <label class="lbl">Chart Title</label>
+      <input class="inp" id="inp_title" placeholder="e.g. My Super Star Chart!" oninput="save()"/>
+      <label class="lbl">Reward Goal 🎁</label>
+      <input class="inp" id="inp_reward" placeholder="e.g. 🍦 Ice cream trip!" oninput="save()"/>
+      <div style="display:flex;gap:12px;align-items:flex-end">
+        <div>
+          <label class="lbl">Stars Needed</label>
+          <input class="inp" type="number" id="inp_stars" min="5" max="200" value="20" oninput="save()" style="width:80px"/>
+        </div>
+        <div>
+          <label class="lbl">Weeks</label>
+          <input class="inp" type="number" id="inp_weeks" min="1" max="8" value="1" oninput="renderChart();save()" style="width:70px"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 2: Chores -->
+    <div class="edit-col">
+      <label class="lbl">Tasks / Chores (<span id="choreCount">0</span>/10)</label>
+      <div class="chore-tags" id="choreTags"></div>
+      <div class="add-chore-row">
+        <input class="inp" id="choreInput" placeholder="Add a task..." onkeydown="if(event.key==='Enter')addChore()"/>
+        <button class="add-btn" onclick="addChore()">+</button>
+      </div>
+      <button class="reset-btn" onclick="resetStickers()">🗑️ Clear all stickers</button>
+    </div>
+
+    <!-- Col 3: Photos + AI -->
+    <div class="edit-col">
+      <label class="lbl">📸 Child's Photos (Hero Card)</label>
+      <div class="photo-row">
+        <div class="photo-box" onclick="document.getElementById('ph1').click()" id="photoBox1">
+          <div><div style="font-size:24px;text-align:center">📷</div><div class="ph-label">Main photo</div></div>
+        </div>
+        <div class="photo-box" onclick="document.getElementById('ph2').click()" id="photoBox2">
+          <div><div style="font-size:24px;text-align:center">📷</div><div class="ph-label">Badge photo</div></div>
+        </div>
+      </div>
+      <input type="file" id="ph1" accept="image/*" style="display:none" onchange="loadPhoto(event,1)"/>
+      <input type="file" id="ph2" accept="image/*" style="display:none" onchange="loadPhoto(event,2)"/>
+      <button class="gen-btn" id="genBtn" onclick="generateCharacter()" disabled>
+        ✨ Generate Hero Description
+      </button>
+      <p style="font-size:10px;opacity:.45;line-height:1.5">
+        Upload 1–2 photos then tap Generate. AI will write a personalised hero description based on your child's photos.
+      </p>
+    </div>
+  </div>
+
+  <!-- Sticker Picker (chart mode) -->
+  <div class="sticker-picker" id="stickerPicker" style="display:none">
+    <span class="pick-label">STICKER:</span>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+    <!-- Hero + Progress column -->
+    <div class="hero-col">
+      <div class="hero-card" id="heroCard">
+        <div class="hero-badge">✦ HERO CARD ✦</div>
+        <div class="avatar-wrap">
+          <div class="avatar-ring"></div>
+          <div class="avatar-main" id="avatarMain"><span>👤</span></div>
+          <div class="avatar-badge" id="avatarBadge"><span>⭐</span></div>
+        </div>
+        <div class="hero-name" id="heroName">Super Hero</div>
+        <div class="hero-desc" id="heroDesc">Upload photos &amp; tap Generate to create your personalised hero! ✨</div>
+        <div class="hero-ribbon">🌟 REWARD HERO 🌟</div>
+      </div>
+      <div class="progress-card">
+        <div class="prog-label">PROGRESS</div>
+        <div class="prog-bar-bg"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+        <div class="prog-counts">
+          <span style="color:var(--accent)" id="progCount">0 ⭐</span>
+          <span style="opacity:.5" id="progMax">/ 20</span>
+        </div>
+        <div class="prog-reward" id="progReward"></div>
+        <div class="goal-reached" id="goalReached" style="display:none">🎉 GOAL REACHED! 🎉</div>
+      </div>
+    </div>
+
+    <!-- Chart column -->
+    <div class="chart-wrap">
+      <div class="chart-title">
+        <h1 id="displayTitle" style="font-family:'Orbitron',sans-serif">My Super Star Chart!</h1>
+        <p id="displayName">Alex's Chart</p>
+      </div>
+      <div id="chartGrid"></div>
+      <div class="hint" id="tapHint" style="display:none">TAP A CELL TO ADD A STICKER ✨</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">💾 Saved!</div>
+
+<script>
+// ─── THEMES ───────────────────────────────────────────────────────────────────
+const THEMES = {
+  space: {
+    name:"🚀 Space", label:"🚀 Space",
+    bg:"linear-gradient(135deg,#0a0a2e 0%,#1a1a5e 40%,#0d2060 100%)",
+    pattern:"radial-gradient(circle at 20% 30%,rgba(126,184,255,.1) 0%,transparent 50%),radial-gradient(circle at 80% 70%,rgba(255,110,180,.08) 0%,transparent 50%)",
+    accent:"#7eb8ff", accent2:"#ff6eb4", text:"#e8f4ff",
+    card:"rgba(255,255,255,0.07)", border:"rgba(100,180,255,0.3)",
+    stickers:["⭐","🌟","✨","🪐","🚀","🌙","☄️","🛸","🌠","💫"],
+    headerFont:"'Orbitron',sans-serif", stars:true, theme:"#0a0a2e"
+  },
+  ocean: {
+    name:"🌊 Ocean", label:"🌊 Ocean",
+    bg:"linear-gradient(160deg,#003d6b 0%,#005f9e 40%,#0088cc 100%)",
+    pattern:"radial-gradient(ellipse at top,rgba(0,229,229,.12) 0%,transparent 60%)",
+    accent:"#00e5e5", accent2:"#ffd700", text:"#e0faff",
+    card:"rgba(255,255,255,0.1)", border:"rgba(0,220,220,0.35)",
+    stickers:["🐠","🐙","🌊","🐬","⭐","🦈","🐚","🦀","🐟","🌺"],
+    headerFont:"'Pacifico',cursive", stars:false, theme:"#003d6b"
+  },
+  jungle: {
+    name:"🌿 Jungle", label:"🌿 Jungle",
+    bg:"linear-gradient(150deg,#0d2e0d 0%,#1a4a1a 40%,#2d6b2d 100%)",
+    pattern:"radial-gradient(circle at 10% 90%,rgba(125,255,125,.1) 0%,transparent 40%)",
+    accent:"#7dff7d", accent2:"#ffcc00", text:"#e8ffe8",
+    card:"rgba(255,255,255,0.08)", border:"rgba(100,255,100,0.3)",
+    stickers:["🦁","🌿","🐒","🦜","🌺","🐆","🍃","🦋","🌸","⭐"],
+    headerFont:"'Righteous',cursive", stars:false, theme:"#0d2e0d"
+  },
+  princess: {
+    name:"👑 Royal", label:"👑 Royal",
+    bg:"linear-gradient(140deg,#2d0040 0%,#6b006b 40%,#a0008a 100%)",
+    pattern:"radial-gradient(circle at 50% 0%,rgba(255,180,255,.15) 0%,transparent 50%)",
+    accent:"#ffb3ff", accent2:"#ffd700", text:"#ffe8ff",
+    card:"rgba(255,255,255,0.1)", border:"rgba(255,180,255,0.4)",
+    stickers:["👑","💎","⭐","🌟","🦄","🌸","💜","🎀","✨","🏰"],
+    headerFont:"'Cinzel Decorative',cursive", stars:false, theme:"#2d0040"
+  },
+  dino: {
+    name:"🦕 Dino", label:"🦕 Dino",
+    bg:"linear-gradient(140deg,#1a2e00 0%,#2e4a00 40%,#3d6600 100%)",
+    pattern:"radial-gradient(circle at 80% 20%,rgba(180,255,80,.1) 0%,transparent 40%)",
+    accent:"#b4ff50", accent2:"#ff8c00", text:"#f0ffe0",
+    card:"rgba(255,255,255,0.08)", border:"rgba(180,255,80,0.35)",
+    stickers:["🦕","🦖","⭐","🥚","🌋","🍖","🌿","💥","🦴","🐊"],
+    headerFont:"'Fredoka One',cursive", stars:false, theme:"#1a2e00"
+  },
+  rainbow: {
+    name:"🌈 Rainbow", label:"🌈 Rainbow",
+    bg:"linear-gradient(140deg,#ff6b9d 0%,#c44dff 35%,#4d79ff 65%,#00ccaa 100%)",
+    pattern:"radial-gradient(circle at 50% 50%,rgba(255,255,255,.08) 0%,transparent 70%)",
+    accent:"#ffffff", accent2:"#ffd700", text:"#fff",
+    card:"rgba(255,255,255,0.15)", border:"rgba(255,255,255,0.4)",
+    stickers:["🌈","⭐","🦄","🎉","💖","✨","🍭","🎊","💫","🌟"],
+    headerFont:"'Baloo 2',cursive", stars:false, theme:"#c44dff"
+  }
+};
+
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DEFAULT_CHORES = ["Make Bed","Brush Teeth","Tidy Room","Homework","Be Kind","Eat Dinner"];
+const STORAGE_KEY = "rewardChart_v2";
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let state = {
+  theme: "space",
+  name: "Alex",
+  title: "My Super Star Chart!",
+  reward: "🎉 Win a special treat!",
+  starsNeeded: 20,
+  weeks: 1,
+  chores: [...DEFAULT_CHORES],
+  stickers: {},       // key: "week-chore-day" => emoji
+  photo1: null,       // base64 data URL
+  photo2: null,
+  heroDesc: "",
+  selectedSticker: 0,
+  editMode: true,
+};
+
+// ─── LOAD / SAVE ──────────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      state = { ...state, ...saved };
+    }
+  } catch(e) {}
+}
+
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      showToast("💾 Saved!");
+    } catch(e) {
+      showToast("⚠️ Couldn't save – storage full");
+    }
+    updateProgress();
+    updateHeroCard();
+    updateTitleDisplay();
+  }, 400);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+function applyTheme(key) {
+  const th = THEMES[key];
+  const root = document.documentElement;
+  root.style.setProperty("--accent", th.accent);
+  root.style.setProperty("--accent2", th.accent2);
+  root.style.setProperty("--text", th.text);
+  root.style.setProperty("--card", th.card);
+  root.style.setProperty("--border", th.border);
+  root.style.setProperty("--pattern", th.pattern);
+  document.body.style.background = th.bg;
+  document.querySelector("meta[name=theme-color]").content = th.theme;
+  document.getElementById("displayTitle").style.fontFamily = th.headerFont;
+
+  // Stars
+  const starBg = document.getElementById("starBg");
+  starBg.innerHTML = "";
+  if (th.stars) {
+    for (let i = 0; i < 70; i++) {
+      const s = document.createElement("span");
+      const size = Math.random() * 2.5 + 0.5;
+      s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${size}px;height:${size}px;--d:${2+Math.random()*4}s;--dl:${Math.random()*4}s`;
+      starBg.appendChild(s);
+    }
+  }
+
+  // Theme buttons
+  document.querySelectorAll(".theme-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.key === key);
+  });
+
+  // Sticker picker
+  renderStickerPicker();
+}
+
+function setTheme(key) {
+  state.theme = key;
+  applyTheme(key);
+  renderChart();
+  save();
+}
+
+function buildThemeBtns() {
+  const wrap = document.getElementById("themeBtns");
+  wrap.innerHTML = "";
+  Object.entries(THEMES).forEach(([key, th]) => {
+    const b = document.createElement("button");
+    b.className = "theme-btn";
+    b.dataset.key = key;
+    b.textContent = th.label;
+    b.onclick = () => setTheme(key);
+    wrap.appendChild(b);
+  });
+}
+
+// ─── EDIT PANEL ───────────────────────────────────────────────────────────────
+function toggleEdit() {
+  state.editMode = !state.editMode;
+  const panel = document.getElementById("editPanel");
+  const btn = document.getElementById("editToggle");
+  const picker = document.getElementById("stickerPicker");
+  const hint = document.getElementById("tapHint");
+
+  panel.style.display = state.editMode ? "grid" : "none";
+  btn.className = state.editMode ? "edit-btn" : "edit-btn off";
+  btn.textContent = state.editMode ? "✅ Done Editing" : "✏️ Edit Chart";
+  picker.style.display = state.editMode ? "none" : "flex";
+  hint.style.display = state.editMode ? "none" : "block";
+}
+
+// ─── CHORES ───────────────────────────────────────────────────────────────────
+function renderChoreTags() {
+  const wrap = document.getElementById("choreTags");
+  wrap.innerHTML = "";
+  document.getElementById("choreCount").textContent = state.chores.length;
+  state.chores.forEach((c, i) => {
+    const tag = document.createElement("span");
+    tag.className = "chore-tag";
+    tag.innerHTML = `${c}<button class="rm" onclick="removeChore(${i})">✕</button>`;
+    wrap.appendChild(tag);
+  });
+}
+
+function addChore() {
+  const inp = document.getElementById("choreInput");
+  const val = inp.value.trim();
+  if (val && state.chores.length < 10) {
+    state.chores.push(val);
+    inp.value = "";
+    renderChoreTags();
+    renderChart();
+    save();
+  }
+}
+
+function removeChore(i) {
+  state.chores.splice(i, 1);
+  renderChoreTags();
+  renderChart();
+  save();
+}
+
+function resetStickers() {
+  if (confirm("Clear all stickers from the chart?")) {
+    state.stickers = {};
+    renderChart();
+    updateProgress();
+    save();
+  }
+}
+
+// ─── PHOTOS ───────────────────────────────────────────────────────────────────
+function loadPhoto(e, which) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    if (which === 1) state.photo1 = dataUrl;
+    else state.photo2 = dataUrl;
+    updatePhotoBoxes();
+    document.getElementById("genBtn").disabled = !state.photo1;
+    save();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updatePhotoBoxes() {
+  const b1 = document.getElementById("photoBox1");
+  const b2 = document.getElementById("photoBox2");
+  if (state.photo1) b1.innerHTML = `<img src="${state.photo1}" alt="photo 1"/>`;
+  else b1.innerHTML = `<div><div style="font-size:24px;text-align:center">📷</div><div class="ph-label">Main photo</div></div>`;
+  if (state.photo2) b2.innerHTML = `<img src="${state.photo2}" alt="photo 2"/>`;
+  else b2.innerHTML = `<div><div style="font-size:24px;text-align:center">📷</div><div class="ph-label">Badge photo</div></div>`;
+}
+
+// ─── AI CHARACTER GENERATION ──────────────────────────────────────────────────
+async function generateCharacter() {
+  if (!state.photo1) return;
+  const btn = document.getElementById("genBtn");
+  btn.disabled = true;
+  btn.textContent = "✨ Generating...";
+  document.getElementById("heroDesc").innerHTML = `<span style="animation:pulse 1s ease-in-out infinite;opacity:.6">✨ Creating your hero...</span>`;
+
+  try {
+    const th = THEMES[state.theme];
+    const content = [
+      { type:"image", source:{ type:"base64", media_type:"image/jpeg", data: state.photo1.split(",")[1] } },
+    ];
+    if (state.photo2) {
+      content.push({ type:"image", source:{ type:"base64", media_type:"image/jpeg", data: state.photo2.split(",")[1] } });
+    }
+    content.push({ type:"text", text:`Look at this child's photo(s). Write a fun 2-sentence hero description for a kids reward chart card. Mention something specific about their appearance (hair colour, smile, eyes etc). Use the "${th.name}" theme. Keep it under 30 words, enthusiastic and empowering! No quotation marks.` });
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:100, messages:[{role:"user", content}] })
+    });
+    const data = await res.json();
+    const text = data.content?.find(b => b.type==="text")?.text || "";
+    state.heroDesc = text.trim();
+  } catch(e) {
+    state.heroDesc = "A brave and brilliant hero ready for any challenge! 🌟";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✨ Generate Hero Description";
+  updateHeroCard();
+  save();
+}
+
+// ─── HERO CARD ────────────────────────────────────────────────────────────────
+function updateHeroCard() {
+  // Name
+  document.getElementById("heroName").textContent = state.name || "Super Hero";
+  // Desc
+  document.getElementById("heroDesc").textContent = state.heroDesc || "Upload photos & tap Generate to create your personalised hero! ✨";
+  // Avatar main
+  const am = document.getElementById("avatarMain");
+  am.innerHTML = state.photo1 ? `<img src="${state.photo1}" alt="child"/>` : `<span>👤</span>`;
+  // Avatar badge
+  const ab = document.getElementById("avatarBadge");
+  ab.innerHTML = state.photo2 ? `<img src="${state.photo2}" alt="child 2"/>` : `<span>⭐</span>`;
+}
+
+// ─── PROGRESS ────────────────────────────────────────────────────────────────
+function updateProgress() {
+  const total = Object.values(state.stickers).filter(Boolean).length;
+  const needed = parseInt(state.starsNeeded) || 20;
+  const pct = Math.min(100, (total / needed) * 100);
+  document.getElementById("progBar").style.width = pct + "%";
+  document.getElementById("progCount").textContent = total + " ⭐";
+  document.getElementById("progMax").textContent = "/ " + needed;
+  document.getElementById("progReward").textContent = state.reward || "";
+  document.getElementById("goalReached").style.display = total >= needed ? "block" : "none";
+}
+
+function updateTitleDisplay() {
+  document.getElementById("displayTitle").textContent = state.title || "My Super Star Chart!";
+  document.getElementById("displayTitle").style.fontFamily = THEMES[state.theme].headerFont;
+  const n = state.name || "Your";
+  document.getElementById("displayName").textContent = n + (n.endsWith("s") ? "'" : "'s") + " Chart";
+}
+
+// ─── STICKER PICKER ───────────────────────────────────────────────────────────
+function renderStickerPicker() {
+  const wrap = document.getElementById("stickerPicker");
+  const stickers = THEMES[state.theme].stickers;
+  wrap.innerHTML = `<span class="pick-label">STICKER:</span>`;
+  stickers.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.className = "sticker-pick-btn" + (i === state.selectedSticker ? " selected" : "");
+    b.textContent = s;
+    b.onclick = () => {
+      state.selectedSticker = i;
+      renderStickerPicker();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+// ─── CHART GRID ──────────────────────────────────────────────────────────────
+function renderChart() {
+  const wrap = document.getElementById("chartGrid");
+  wrap.innerHTML = "";
+  const weeks = parseInt(state.weeks) || 1;
+
+  for (let w = 0; w < weeks; w++) {
+    const block = document.createElement("div");
+    block.className = "week-block";
+
+    if (weeks > 1) {
+      const wh = document.createElement("div");
+      wh.className = "week-header";
+      wh.textContent = `WEEK ${w + 1}`;
+      block.appendChild(wh);
+    }
+
+    const table = document.createElement("table");
+    table.className = "grid-table";
+
+    // Header
+    const thead = document.createElement("thead");
+    const hrow = document.createElement("tr");
+    const thTask = document.createElement("th");
+    thTask.textContent = "TASK";
+    hrow.appendChild(thTask);
+    DAYS.forEach(d => {
+      const th = document.createElement("th");
+      th.textContent = d;
+      hrow.appendChild(th);
+    });
+    thead.appendChild(hrow);
+    table.appendChild(thead);
+
+    // Body
+    const tbody = document.createElement("tbody");
+    const themeStickers = THEMES[state.theme].stickers;
+
+    state.chores.forEach((chore, ci) => {
+      const tr = document.createElement("tr");
+
+      const tdTask = document.createElement("td");
+      tdTask.className = "task-cell";
+      tdTask.innerHTML = `<span class="task-icon">${themeStickers[ci % themeStickers.length]}</span>${chore}`;
+      tr.appendChild(tdTask);
+
+      DAYS.forEach(day => {
+        const key = `${w}-${chore}-${day}`;
+        const placed = state.stickers[key];
+        const td = document.createElement("td");
+        td.className = "sticker-cell" + (placed ? " filled" : "");
+        td.innerHTML = placed
+          ? `<span class="placed">${placed}</span>`
+          : `<div class="sticker-dot"></div>`;
+        td.onclick = () => {
+          if (state.editMode) return;
+          if (state.stickers[key]) {
+            delete state.stickers[key];
+            td.classList.remove("filled");
+            td.innerHTML = `<div class="sticker-dot"></div>`;
+          } else {
+            const s = themeStickers[state.selectedSticker];
+            state.stickers[key] = s;
+            td.classList.add("filled");
+            td.innerHTML = `<span class="placed">${s}</span>`;
+          }
+          updateProgress();
+          // debounce save
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(() => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }, 300);
+        };
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    block.appendChild(table);
+    wrap.appendChild(block);
+  }
+}
+
+// ─── SYNC INPUTS ─────────────────────────────────────────────────────────────
+function syncInputs() {
+  document.getElementById("inp_name").value = state.name;
+  document.getElementById("inp_title").value = state.title;
+  document.getElementById("inp_reward").value = state.reward;
+  document.getElementById("inp_stars").value = state.starsNeeded;
+  document.getElementById("inp_weeks").value = state.weeks;
+
+  document.getElementById("inp_name").oninput = e => { state.name = e.target.value; save(); };
+  document.getElementById("inp_title").oninput = e => { state.title = e.target.value; save(); };
+  document.getElementById("inp_reward").oninput = e => { state.reward = e.target.value; save(); };
+  document.getElementById("inp_stars").oninput = e => { state.starsNeeded = e.target.value; updateProgress(); save(); };
+  document.getElementById("inp_weeks").oninput = e => { state.weeks = e.target.value; renderChart(); save(); };
+
+  document.getElementById("genBtn").disabled = !state.photo1;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  loadState();
+  buildThemeBtns();
+  applyTheme(state.theme);
+  syncInputs();
+  renderChoreTags();
+  updatePhotoBoxes();
+  updateHeroCard();
+  updateTitleDisplay();
+  updateProgress();
+  renderChart();
+  renderStickerPicker();
+
+  // Start in edit mode if first time, else chart mode
+  if (!state.editMode) {
+    state.editMode = true;
+    toggleEdit(); // flip to chart mode
+  }
+}
+
+init();
+</script>
+</body>
+</html>
